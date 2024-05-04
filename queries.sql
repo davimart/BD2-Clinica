@@ -9,12 +9,12 @@ SELECT C.CRM, C.IdPac, C.IdEsp, C.Dia, C.HoraInicioCon
 FROM Consulta AS C
 JOIN Paciente AS P ON C.IdPac = P.IdPac
 JOIN Medico AS M ON  C.CRM = M.CRM
-WHERE P.Nome = 'Diego Pituca' AND M.Nome = 'Dr. House';
+WHERE P.Nome = 'Diego Pituca' AND M.Sobrenome = 'House';
 
 --b) Listar os médicos (CRM, NomeM) que atendem somente na especialidade
 --“Dermatologia”.
 
-SELECT DISTINCT Medico.CRM, Medico.Nome
+SELECT DISTINCT M.CRM, M.Nome
 FROM Medico AS M
 JOIN ExerceEsp AS EE ON M.CRM = EE.CRM
 JOIN Especialidade AS E ON EE.IdEsp = E.IdEsp
@@ -22,21 +22,36 @@ WHERE Especialidade.Nome = 'Dermatologia';
 
 --c) Listar os médicos (CRM, NomeM) que atendem todas as especialidades.
 
-SELECT CRM, Nome
-FROM Medico NATURAL JOIN ExerceEsp
-WHERE Espec = 
+SELECT M.CRM, CONCAT(M.Nome, ' ', M.Sobrenome) AS NomeM
+FROM Medico M
+WHERE (
+    SELECT COUNT(DISTINCT EE.IdEsp) -- Conta o número de especialidades distintas atendidas pelo médico
+    FROM ExerceEsp EE
+    WHERE EE.CRM = M.CRM
+) = (
+    SELECT COUNT(*) -- Conta o número total de especialidades disponíveis
+    FROM Especialidade
+);
 
----MAIS CHATINHO E TEM QUE FAZER
+
+-- Um jeito alternativo de Conta o número total de especialidades disponíveis
+SELECT enumlabel
+FROM pg_enum
+WHERE enumtypid = 'Nome_Especialidade'::regtype;
+
 
 --d) Listar os pacientes (CPF, NomeP) consultados pelo “Dr. House” como
-“Cardiologista”.
+--“Cardiologista”.
+
+-- ADICIONAR CARDIOLOGIA A LISTA DE ESPECIALIDADES
+ALTER TYPE Nome_Especialidade ADD VALUE 'Cardiologia';
 
 SELECT P.CPF, P.Nome
 FROM Paciente AS P JOIN Consulta AS C ON P.IdPac = C.IdPac
 	JOIN Medico AS M ON C.CRM = M.CRM
 	JOIN ExerceEsp AS EE ON M.CRM = EE.CRM
 	JOIN Especialidade AS E ON EE.IdEsp = E.IdEsp
-WHERE M.Nome = 'House' AND E.Nome = 'Cardiologia' -- ADICIONAR CARDIOLOGIA A LISTA DE ESPECIALIDADES
+WHERE M.Sobrenome = 'House' AND E.Nome = 'Cardiologia' -- ADICIONAR CARDIOLOGIA A LISTA DE ESPECIALIDADES
 
 
 --e) Listar o nome dos médicos que atendem consultas todos os dias da semana.
@@ -67,7 +82,7 @@ SELECT E.Nome AS Especialidade, COUNT(C.IdCon) AS QuantidadeConsultas
 FROM Medico as M
 JOIN Consulta as C ON M.CRM = C.CRM
 JOIN Especialidade as E ON C.IdEsp = E.IdEsp
-WHERE CONCAT(M.Nome, ' ', M.Sobrenome) = 'House'
+WHERE M.Sobrenome = 'House'
 GROUP BY E.Nome;
 
 --h) Quais são os médicos (CRM, NomeM) com o menor número de consultas
@@ -85,14 +100,28 @@ HAVING COUNT(C.IdCon) = (
     LIMIT 1
 );
 
+-- ou talvez isso
+
+SELECT M.CRM, CONCAT(M.Nome, ' ', M.Sobrenome) AS NomeMedico, COUNT(C.IdCon) AS Numero_Consultas
+FROM Medico as M
+LEFT JOIN Consulta as C ON M.CRM = C.CRM
+GROUP BY M.CRM, M.Nome, M.Sobrenome
+ORDER BY COUNT(C.IdCon) ASC
+Limit 3;
+
 --i) Remover todos as consultas não pagas.
 
+
+-- pelo o q eu entendi essa parte do diagnóstico está sendo feita só por causa da integridade do banco de dados,
+-- mas o jeito correto creio de fazer isso seria com ON DELETE CASCADE e ai vou adicionar isso na criação das tabelas
 DELETE FROM Diagnostico
 WHERE IdCon IN (
     SELECT IdCon
     FROM Consulta
     WHERE Pagou = FALSE
 );
+
+--então seria só isso
 DELETE FROM Consulta
 WHERE Pagou = FALSE;
 
@@ -102,17 +131,17 @@ a:m,na Especialidade “dermatologia”, com o “Dr. House”, para o dia
 “24/05/2024”, na mesma hora, como o “Dr. Kildare”, na mesma especialidade.
 */
 UPDATE Consulta
-SET CRM = (SELECT CRM FROM Medico WHERE CONCAT(Nome, ' ', Sobrenome) = 'Dr. Kildare'),
+SET CRM = (SELECT CRM FROM Medico WHERE Medico.Sobrenome = 'Kildare')
     Dia = '2024-05-24'
-WHERE IdCon = [
-    SELECT IdCon
-    FROM Consulta
-    JOIN Medico ON Consulta.CRM = Medico.CRM
-    JOIN Paciente ON Consulta.IdPac = Paciente.IdPac
-    JOIN Especialidade ON Consulta.IdEsp = Especialidade.IdEsp
-    WHERE CONCAT(Medico.Nome, ' ', Medico.Sobrenome) = 'Dr. House'
-         AND Paciente.Nome = 'Diego Pituca'
-         AND Consulta.Dia = '2024-05-10'
-         AND Consulta.HoraInicioCon = '10:00:00'
-         AND Especialidade.Nome = 'Dermatologia';
-];
+WHERE IdCon = (SELECT IdCon
+                FROM Consulta
+                JOIN Medico ON Consulta.CRM = Medico.CRM
+                JOIN Paciente ON Consulta.IdPac = Paciente.IdPac
+                JOIN Especialidade ON Consulta.IdEsp = Especialidade.IdEsp
+                WHERE Medico.Sobrenome = 'House'
+                    AND Paciente.Nome = 'Diego Pituca'
+                    AND Consulta.Dia = '2024-05-10'
+                    AND Consulta.HoraInicioCon = '10:00:00'
+                    AND Especialidade.Nome = 'Dermatologia');
+
+--atualizar disponibilidade dos médicos, não sei direito como fazer

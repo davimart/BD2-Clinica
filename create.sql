@@ -19,6 +19,8 @@ CREATE TABLE Paciente (
     Sexo S_EXO NOT NULL
 );
 
+
+-- tem que adicionar alguma restrição e ver como a agenda de fato funciona
 CREATE TABLE Agenda (
     IdAgenda INT PRIMARY KEY,
     Dia DATE,
@@ -26,7 +28,7 @@ CREATE TABLE Agenda (
     HoraFim TIME,
     CRM INT,
 
-    FOREIGN KEY (CRM) REFERENCES Medico(CRM),
+    FOREIGN KEY (CRM) REFERENCES Medico(CRM) ON DELETE CASCADE,
 
     CONSTRAINT CK_Horarios CHECK ( HoraInicio < HoraFim )
 );
@@ -43,8 +45,8 @@ CREATE TABLE ExerceEsp (
     CRM INT,
     IdEsp INT,
     PRIMARY KEY (CRM, IdEsp),
-    FOREIGN KEY (CRM) REFERENCES Medico(CRM),
-    FOREIGN KEY (IdEsp) REFERENCES Especialidade(IdEsp)
+    FOREIGN KEY (CRM) REFERENCES Medico(CRM) ON DELETE CASCADE,
+    FOREIGN KEY (IdEsp) REFERENCES Especialidade(IdEsp) ON DELETE CASCADE
 );
 
 
@@ -62,9 +64,9 @@ CREATE TABLE Consulta (
     ValorPago FLOAT,
     FormaPagamento Pagamentos_Aceitos,
 
-    FOREIGN KEY (CRM) REFERENCES Medico(CRM),
-    FOREIGN KEY (IdEsp) REFERENCES Especialidade(IdEsp),
-    FOREIGN KEY (IdPac) REFERENCES Paciente(IdPac),
+    FOREIGN KEY (CRM) REFERENCES Medico(CRM) ON DELETE CASCADE,
+    FOREIGN KEY (IdEsp) REFERENCES Especialidade(IdEsp) ON DELETE CASCADE,
+    FOREIGN KEY (IdPac) REFERENCES Paciente(IdPac) ON DELETE CASCADE,
 
     CONSTRAINT CK_Horarios CHECK ( HoraFimCon > HoraInicioCon )
 
@@ -77,7 +79,7 @@ CREATE TABLE Diagnostico (
     Observacoes VARCHAR(50),
     IdCon INT NOT NULL,
 
-    FOREIGN KEY (IdCon) REFERENCES Consulta(IdCon)
+    FOREIGN KEY (IdCon) REFERENCES Consulta(IdCon) ON DELETE CASCADE
 );
 
 CREATE TYPE Nome_Doenca AS ENUM ('Dengue', 'Malária', 'Linfoma');
@@ -91,6 +93,6 @@ CREATE TABLE Diagnostica (
     IdDoenca INT,
 
     PRIMARY KEY (IdDiagnostico, IdDoenca),
-    FOREIGN KEY (IdDiagnostico) REFERENCES Diagnostico(IdDiagnostico),
-    FOREIGN KEY (IdDoenca) REFERENCES Doenca(IdDoenca)
+    FOREIGN KEY (IdDiagnostico) REFERENCES Diagnostico(IdDiagnostico) ON DELETE CASCADE,
+    FOREIGN KEY (IdDoenca) REFERENCES Doenca(IdDoenca) ON DELETE CASCADE
 );
